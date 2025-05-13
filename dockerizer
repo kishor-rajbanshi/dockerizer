@@ -1,0 +1,24 @@
+#!/bin/sh
+
+BASE_PATH="$(cd "$(dirname "$0")" && pwd)"
+
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+
+case "${OS}" in
+    linux*)         ;;
+    darwin*)        ;;
+    *)              echo "Unsupported operating system [$(uname -s)]. Dockerizer supports macOS, Linux, and Windows (WSL2)." >&2 && exit 1;;
+esac
+
+ARCH="$(uname -m)"
+
+case "$ARCH" in
+    x86_64)             ARCH="amd64" ;;
+    aarch64 | arm64)    ARCH="arm64" ;;
+    armv7l | armhf)     ARCH="arm" ;;
+    *)                  echo "Unsupported architecture: $ARCH" && exit 1 ;;
+esac
+
+[ -f "$BASE_PATH/yq" ] || curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_${OS}_${ARCH}" -o "$BASE_PATH/yq"
+
+chmod +x "$BASE_PATH/yq"

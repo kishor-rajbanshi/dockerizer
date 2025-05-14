@@ -16,9 +16,38 @@ case "$ARCH" in
     x86_64)             ARCH="amd64" ;;
     aarch64 | arm64)    ARCH="arm64" ;;
     armv7l | armhf)     ARCH="arm" ;;
-    *)                  echo "Unsupported architecture: $ARCH" && exit 1 ;;
+    *)                  echo "Unsupported architecture: $ARCH" >&2 && exit 1 ;;
 esac
 
 [ -f "$BASE_PATH/yq" ] || curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_${OS}_${ARCH}" -o "$BASE_PATH/yq"
 
 chmod +x "$BASE_PATH/yq"
+
+# $BASE_PATH/yq eval --input-format=json --output-format=yaml . $BASE_PATH/test.json > $BASE_PATH/test.yml
+
+if test -t 1; then
+    ncolors=$(tput colors)
+
+    if test -n "$ncolors" && test "$ncolors" -ge 8; then
+        BOLD="$(tput bold)"
+        YELLOW="$(tput setaf 3)"
+        GREEN="$(tput setaf 2)"
+        NC="$(tput sgr0)"
+    fi
+fi
+
+function help {
+    echo "Dockerizer"
+    echo
+    echo "${YELLOW}Usage:${NC}" >&2
+    echo "  dockerizer COMMAND [options] [arguments]"
+    echo
+}
+
+if [ $# -gt 0 ]; then
+    if [ "$1" == "help" ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+        help
+    fi
+else
+    help
+fi

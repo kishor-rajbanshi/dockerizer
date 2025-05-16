@@ -1,6 +1,10 @@
 #!/bin/sh
 
-BASE_PATH="$(cd "$(dirname "$0")" && pwd)"
+CALLED_FROM_DOCKERIZER=true
+
+CALL_DIR="$(pwd)"
+
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 
@@ -19,17 +23,16 @@ case "$ARCH" in
     *)                  echo "Unsupported architecture: $ARCH" >&2 && exit 1 ;;
 esac
 
-[ -f "$BASE_PATH/yq" ] || curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_${OS}_${ARCH}" -o "$BASE_PATH/yq"
+[ -f "$BASE_DIR/yq" ] || curl -L "https://github.com/mikefarah/yq/releases/latest/download/yq_${OS}_${ARCH}" -o "$BASE_DIR/yq"
 
-chmod +x "$BASE_PATH/yq"
-
-# $BASE_PATH/yq eval --input-format=json --output-format=yaml . $BASE_PATH/test.json > $BASE_PATH/test.yml
+chmod +x "$BASE_DIR/yq"
 
 if test -t 1; then
     ncolors=$(tput colors)
 
     if test -n "$ncolors" && test "$ncolors" -ge 8; then
         BOLD="$(tput bold)"
+        RED="$(tput setaf 1)"
         YELLOW="$(tput setaf 3)"
         GREEN="$(tput setaf 2)"
         NC="$(tput sgr0)"
@@ -41,13 +44,51 @@ function help {
     echo
     echo "${YELLOW}Usage:${NC}" >&2
     echo "  dockerizer COMMAND [options] [arguments]"
-    echo
+    # echo
+    # echo "${YELLOW}Options:${NC}"
+    # echo "  ${GREEN}--type=<framework>${NC}        Generate Docker config for specified framework (laravel)."
+    # echo
+    # echo "${YELLOW}Available Commands:${NC}"
+    # echo "  ${GREEN}init${NC}              Set up docker folder with base files and a starter compose.yml in the current directory."
+    # echo
 }
 
-if [ $# -gt 0 ]; then
-    if [ "$1" == "help" ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-        help
-    fi
-else
+# while [[ $# -gt 0 ]]; do
+#     case "$1" in
+#         --env=*)
+#             ENV="${1#*=}"
+#             ;;
+#         --service=*)
+#             SERVICE="${1#*=}"
+#             ;;
+#         --build)
+#             BUILD=true
+#             ;;
+#         --verbose)
+#             VERBOSE=true
+#             ;;
+#         --help)
+#             echo "Usage: $0 [--env=ENV] [--service=NAME] [--build] [--verbose]"
+#             exit 0
+#             ;;
+#         *)
+#             echo "Unknown option: $1"
+#             exit 1
+#             ;;
+#     esac
+#     shift
+# done
+
+if [ -z "$1" ] || [ "$1" == "help" ] || [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     help
+
+elif [ "$1" == "init" ]; then
+    shift 1
+
+    . $BASE_DIR/commands/init
+
+else
+    echo
+    echo "  ${RED}Unknown command: $1${NC}"
+    echo
 fi

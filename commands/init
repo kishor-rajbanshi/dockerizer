@@ -1,0 +1,53 @@
+#!/bin/sh
+
+[ "$CALLED_FROM_DOCKERIZER" != "true" ] && echo "Execution is not permitted." && exit 1
+
+COMPOSE_FILE="$CALL_DIR/compose.yml"
+
+BASE_YAML=$(cat <<'EOF'
+x-variables: &variables
+  UID: "${UID:-1000}"
+  GID: "${GID:-1000}"
+  ENV: "local"
+
+x-config: &config
+  restart: unless-stopped
+  working_dir: /var/www/html
+  healthcheck:
+    timeout: 6s
+    interval: 2s
+    retries: 199
+    start_period: 3s
+    test: ["CMD", "test", "-f", "/tmp/.ready"]
+EOF
+)
+
+# Create if not exists
+if [ ! -f "$COMPOSE_FILE" ]; then
+  printf "%s\n" "$BASE_YAML" > "$COMPOSE_FILE"
+  echo "Created $COMPOSE_FILE with base anchors."
+  exit 0
+fi
+
+TMP_MERGED="$(mktemp)"
+TMP_HEAD="$(mktemp)"
+
+# Merge existing file with base, filling missing values
+$BASE_DIR/yq eval-all 'select(fileIndex==0) * select(fileIndex==1)' \
+  - <<< "$BASE_YAML" "$COMPOSE_FILE" > "$TMP_MERGED"
+
+# Check if anchors are missing
+has_vars=$($BASE_DIR/yq eval 'has("x-variables")' "$COMPOSE_FILE")
+has_conf=$($BASE_DIR/yq eval 'has("x-config")' "$COMPOSE_FILE")
+
+# Prepend missing anchor blocks
+[ "$has_vars" = "false" ] && $BASE_DIR/yq eval '.["x-variables"]' - <<< "$BASE_YAML" >> "$TMP_HEAD" && echo >> "$TMP_HEAD"
+[ "$has_conf" = "false" ] && $BASE_DIR/yq eval '.["x-config"]' - <<< "$BASE_YAML" >> "$TMP_HEAD" && echo >> "$TMP_HEAD"
+
+# Combine header and merged content
+cat "$TMP_HEAD" "$TMP_MERGED" > "${COMPOSE_FILE}.new"
+
+mv "${COMPOSE_FILE}.new" "$COMPOSE_FILE"
+rm "$TMP_MERGED" "$TMP_HEAD"
+
+echo "compose.yml updated: anchors ensured, missing fields merged."

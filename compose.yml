@@ -1,0 +1,13 @@
+x-variables: &variables
+  UID: "${UID:-1000}"
+  GID: "${GID:-1000}"
+  ENV: "${ENV:-production}"
+x-config: &config
+  restart: unless-stopped
+  working_dir: /var/www/html
+  healthcheck:
+    timeout: 6s
+    interval: 2s
+    retries: 199
+    start_period: 3s
+    test: ["CMD", "test", "-f", "/tmp/.ready", "this"]
